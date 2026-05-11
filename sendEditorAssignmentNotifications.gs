@@ -78,8 +78,8 @@ function checkProjectsAndNotify() {
     var queuedAt     = row[COL_QUEUED_AT];
     var notified     = String(row[COL_NOTIFIED]).trim().toUpperCase();
 
-    // Skip rows already notified (guarantees email is sent only once)
-    if (notified === "YES") continue;
+    // Skip rows already notified or permanently failed
+    if (notified === "YES" || notified === "FAILED") continue;
 
     // Skip projects received on or before the cutoff date
     var receiveDate = parseDateCell(row[COL_RECEIVE_DATE]);
@@ -122,12 +122,15 @@ function checkProjectsAndNotify() {
       var subject  = buildSubject(projectName);
       var htmlBody = buildEmailBody(creativeName, projectName, editorName, editorEmail);
 
-      MailApp.sendEmail({ to: creativeEmail, subject: subject, htmlBody: htmlBody });
-
-      // Mark row as notified
-      projectsSheet.getRange(r + 1, COL_NOTIFIED + 1).setValue("YES");
-      emailsSent++;
-      Logger.log("Row " + (r + 1) + ": Email sent to " + creativeEmail);
+      try {
+        MailApp.sendEmail({ to: creativeEmail, subject: subject, htmlBody: htmlBody });
+        projectsSheet.getRange(r + 1, COL_NOTIFIED + 1).setValue("YES");
+        emailsSent++;
+        Logger.log("Row " + (r + 1) + ": Email sent to " + creativeEmail);
+      } catch (emailErr) {
+        projectsSheet.getRange(r + 1, COL_NOTIFIED + 1).setValue("FAILED");
+        Logger.log("Row " + (r + 1) + ": FAILED to send to " + creativeEmail + " – " + emailErr.message);
+      }
     }
   }
 
